@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"sync"
+
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
@@ -19,7 +21,9 @@ func HealthCheck(c echo.Context) error {
 }
 
 // WorkSimulation simulates work by sleeping for a random duration
-func WorkSimulation() {
+// Tambien podemos usar un canal
+func WorkSimulation(wg *sync.WaitGroup) {
+	defer wg.Done()
 	duration := time.Duration(rand.Intn(3)+1) * time.Second
 	time.Sleep(duration)
 }
@@ -74,8 +78,10 @@ func CreateTask(c echo.Context) error {
 	if err := c.Validate(u); err != nil {
 		return err
 	}
-
-	go WorkSimulation()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go WorkSimulation(&wg)
+	wg.Wait()
 
 	data := FakeBackend.CreateTask(*u)
 	return c.JSON(http.StatusCreated, types.TaskResponse{
@@ -102,7 +108,10 @@ func DeleteTask(c echo.Context) error {
 		})
 	}
 
-	go WorkSimulation()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go WorkSimulation(&wg)
+	wg.Wait()
 
 	if deleted := FakeBackend.DeleteTask(id); !deleted {
 		return c.JSON(http.StatusNotFound, types.TaskResponse{
@@ -135,8 +144,10 @@ func EditTask(c echo.Context) error {
 		})
 	}
 
-	go WorkSimulation()
-
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go WorkSimulation(&wg)
+	wg.Wait()
 	if updated := FakeBackend.EditTask(*u); !updated {
 		return c.JSON(http.StatusNotFound, types.TaskResponse{
 			Message: types.MessageTaskNotFound,
